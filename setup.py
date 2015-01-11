@@ -5,10 +5,10 @@ def readme():
         return f.read()
 
 setup(name='textfreq',
-      version='0.001',
-      description='Count letters, letter pairs and words in text files.',
+      version='0.100',
+      description='Count letters, letter pairs and words in text files. Also covers Devanagari and Bengali conjuncts',
       long_description=readme(),
-      keywords='Letters, Letter Pairs, Non-Latin, non Latin, count',
+      keywords='Letters, Letter Pairs, Non-Latin, non Latin, count, Devanagari, Bengali',
       url='http://github.com/m4rc1e/textfreq',
       author='Marc Foley',
       author_email='m.foley.88@gmail.com',

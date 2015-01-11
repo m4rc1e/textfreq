@@ -3,7 +3,9 @@ import re
 import codecs
 import argparse
 import selectors
-
+from datetime import datetime
+from collections import Counter
+startTime = datetime.now()
 
 class WordCount:
 
@@ -11,83 +13,82 @@ class WordCount:
         self.in_filename = in_filename
         self.out_filename = out_filename
 
-        self.text = ''
-        self.writeText = 'INDEX, QUANTITY, VALUE\n'
-        with codecs.open(self.in_filename ,'r', encoding = 'utf-8') as myfile:
-            for line in myfile:
-                self.text += line
-
-    #Generic counter for simple checks
-    def counter(self, vars):
-        data = {}
-        for i in vars:
-            if i in data:
-                data[i] += 1
-            else:
-                data[i] = 1
-        return data
-
-
-    def letterFrequency(self):
-        letter = self.counter(self.text)
-        return letter
+        self.myfile = codecs.open(self.in_filename ,'r', encoding = 'utf-8')
+        self.writeText = 'INDEX QUANTITY VALUE\n'
 
 
     def pairFrequency(self):
-        pairs = {}
-        first = 0
-        second = 1
+        print 'Parsing text'
+        data = self.myfile.read()
+        pairs = Counter()
+        first, second = 0, 1
 
-        while True:
-            combo = '%s%s' %(self.text[first], self.text[second])
+        for i in data:
+            combo = "%s%s" %(data[first], data[second])
             if not combo.__contains__(' '):
-                if combo in pairs:
-                    pairs[combo] += 1
-                else:
-                    pairs[combo] = 1
+                pairs[combo] += 1
 
             first += 1
             second += 1
 
-            if second == len(self.text):
+            if second == len(data):
                 break
         return pairs
 
 
+    def regexFrequency(self, data):
+        print 'Parsing text...'
+        count = Counter()
+
+        for i in self.myfile:
+            seperate = re.findall(data, i, re.UNICODE)
+            for j in seperate:
+                count[j] += 1
+        return count
+
+
     def wordFrequency(self):
-        #regex for all punctuation characters in unicode, look at module selectors
-        #/w was not used since it only selects Latin characters.
-        word = re.findall(selectors.words, self.text, re.UNICODE)
-        words = self.counter(word)
-        return words
+        print 'Parsing text...'
+        count = Counter()
+        punct = u"""!"#%\'()−*+,-.–/:;<=>?@[\]^_`„{|}~।«‘‛“‟‹⸂⸄⸉⸌⸜⸠»’”›⸃⸅⸊⸍⸝⸡¿¡"""
+        punctDict = dict((ord(char),u" ") for char in punct)
+        for i in self.myfile:
+            try:
+                seperate = i.lower().translate(punctDict).encode('utf-8')
+                for j in seperate.decode('utf-8').split():
+                    count[j] += 1
+            except:
+                UnicodeWarning
+        return count
 
 
-    #Converts dictionaries into strings for the file writer
     def txtWriter(self, *args):
+        print 'Writing text'
         index = 1
+        txtFile = open(self.out_filename,'w')
+        txtFile.write('INDEX QUANT VALUE\n')
         for j in args:
             for i in sorted(j, key=j.get):
-                self.writeText += "%s %s %s\n" %(index, j[i], i.encode('utf-8'))
+                l = "%s %s %s\n" %(index, j[i], i.encode('utf-8'))
+                txtFile.write(l)
                 index += 1
-        self.writeText += '\n'
-
-
-    #Writes the file
-    def fileWrite(self, datum):
-        txtFile = open(self.out_filename,'w')
-        txtFile.write(datum)
         txtFile.close()
 
 
 def main():
 ##########
     #Command line arguement parser
-    parser = argparse.ArgumentParser(description='<INPUT.txt> <OUTPUT.txt>\nCount letters, letter pairs and words in text files. Parser can also handle non-Latin scripts')
+    parser = argparse.ArgumentParser(description='<INPUT.txt> <OUTPUT.txt> <OPTION> Count letters, letter pairs and words in text files. Parser can also handle non-Latin scripts')
     parser.add_argument('i',help="Enter the Name of Input File")
     parser.add_argument('o',help="Enter the Name of Output File")
-    parser.add_argument('-w','--words',help="Write only words", action='store_true')
-    parser.add_argument('-l','--letters',help="Write only letter frequency", action='store_true')
-    parser.add_argument('-p','--pairs',help="Write only pair frequency", action='store_true')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-w','--words',help="Write word frequency", action='store_true')
+    group.add_argument('-l','--letters',help="Write letter frequency", action='store_true')
+    group.add_argument('-p','--pairs',help="Write pair frequency", action='store_true')
+
+    group.add_argument('-dc','--Devanagari_Conjuncts',help="Find Devanagari Conjuncts", action='store_true')
+
+    group.add_argument('-bc','--Bengali_Conjuncts',help="Find Bengali Conjuncts", action='store_true')
     args = parser.parse_args()
     i,o = None, None #input, output
 ##########
@@ -109,30 +110,29 @@ def main():
     master = WordCount(in_file, out_file)
 
     if args.words:
-        word   = master.wordFrequency()
+        word = master.wordFrequency()
         master.txtWriter(word)
-        print 'Done Words!'
 
-
-    if args.letters:
-        letter = master.letterFrequency()
+    elif args.letters:
+        letter = master.regexFrequency(selectors.letters)
         master.txtWriter(letter)
-        print 'Done Letters'
 
-
-    if args.pairs:
-        pair   = master.pairFrequency()
+    elif args.pairs:
+        pair = master.pairFrequency()
         master.txtWriter(pair)
-        print 'Done Pairs'
 
+    elif args.Devanagari_Conjuncts:
+        dConjunct = master.regexFrequency(selectors.devaConjuncts)
+        master.txtWriter(dConjunct)
+
+    elif args.Bengali_Conjuncts:
+        bConjunct = master.regexFrequency(selectors.banglaConjuncts)
+        master.txtWriter(bConjunct)
     else:
-        letter = master.letterFrequency()
-        pair   = master.pairFrequency()
-        word   = master.wordFrequency()
-        master.txtWriter(letter, pair, word)
+        word = master.wordFrequency()
+        master.txtWriter(word)
 
-    master.fileWrite(master.writeText)
-    print 'Completed!'
+    print 'Finished in ' + str(datetime.now() - startTime)
 ##########
 
 if __name__ == "__main__":
